@@ -1,127 +1,106 @@
-# Phase 0 — spike
-
-Answer five questions before porting anything. Timebox: two days.
-
-Each has an abort condition. Discovering a failure here costs a day;
-discovering it after porting costs weeks.
+# Phase 0 Spike: Evaluation, Risks & Go/No-Go Criteria
 
 ---
 
-## 1. Get Frappe HR running locally
+## 1. Objectives
 
-```bash
-git clone https://github.com/frappe/frappe_docker
-cd frappe_docker
-# follow their development or pwd.yml setup
+The Phase 0 Spike evaluates whether **Frappe HR** can serve as an effective administrative shell and recruiter desk for the Adamson AI Screening Engine without introducing compute bottlenecks, PII leaks, or administrative overhead.
+
+---
+
+## 2. Abort Conditions (Go / No-Go Gates)
+
+The spike defines four strict criteria that determine whether to proceed with the decoupled hybrid approach:
+
+```
+┌──────────────────────────────────────────────────────────────────────────────┐
+│                            PHASE 0 ABORT CONDITIONS                          │
+├────┬─────────────────────────────┬──────────────────────────┬────────────────┤
+│ #  │ Test Dimension              │ Failure Condition        │ Threshold      │
+├────┼─────────────────────────────┼──────────────────────────┼────────────────┤
+│ 1  │ Worker Latency & Starvation │ Queue starvation         │ > 15s backlog  │
+│ 2  │ PII Leakage in Audit Trail  │ Raw PII in tabVersion    │ > 0 occurrences│
+│ 3  │ Model Node Saturation       │ vLLM VRAM OOM crash      │ > 0 crashes    │
+│ 4  │ Data Integrity Mismatch     │ Schema validation bypass │ > 0 bypasses   │
+└────┴─────────────────────────────┴──────────────────────────┴────────────────┘
 ```
 
-**Done when:** the desk UI loads and you can log in as Administrator.
+### Abort Condition 1: Worker Queue Starvation
+* **Hazard:** If webhook dispatches from Frappe HR block standard transactional workers, standard HRMS tasks (e.g., payroll processing, leave requests) will experience latency spikes.
+* **Pass Criteria:** Webhook dispatch tasks must execute in under 150ms. Frappe web workers must maintain a p99 response time below 350ms under continuous intake load.
+* **Action on Failure:** Migrate webhook dispatching to a dedicated Redis queue or an external ingestion gateway.
 
-**If it fights you for more than half a day:** that difficulty does not go
-away in production. Note what broke before moving on.
+### Abort Condition 2: PII Leakage into Version History
+* **Hazard:** Frappe tracks changes across documents by serializing diffs into the `tabVersion` table. If candidate profiles are stored as standard DocTypes, raw resume text, addresses, and demographic attributes will be recorded in system audit logs, bypassing `build_scoring_profile`.
+* **Pass Criteria:** The `tabVersion` table must contain zero instances of unredacted candidate PII. Only cryptographic verification hashes and calculated scorecards may persist in Frappe.
+* **Action on Failure:** Abort native Frappe storage for screening records; isolate candidate records in PostgreSQL.
 
----
+### Abort Condition 3: GPU Node Saturation & Timeout
+* **Hazard:** Processing 1,000 resumes (averaging 2–3 pages each) requires ~2,500 image frames. Running batch inference without bounded queue concurrency will trigger GPU out-of-memory (OOM) errors or HTTP timeouts.
+* **Pass Criteria:** The local vLLM instance must process 100 concurrent pages using continuous batching and guided JSON decoding without exceeding 85% GPU VRAM or returning HTTP 5xx errors.
+* **Action on Failure:** Enforce client-side rate limiting and worker concurrency caps ($N \le 4$).
 
-## 2. Do the recruitment doctypes exist?  ← **ANSWERED: yes**
-
-**Resolved 2026-09-23.** They exist, inside the `hr` module — `modules.txt`
-lists only HR and Payroll, and the README never mentions recruitment, which
-is why this looked doubtful. Confirmed by reading the doctype JSON directly:
-job_opening, job_applicant, job_offer, interview, interview_feedback,
-job_requisition, staffing_plan, appointment_letter. Field-level mapping is in
-[frappe-mapping.md](frappe-mapping.md).
-
-Still worth confirming in your own running instance that they are enabled and
-behave as documented:
-
-Look in the desk UI for:
-
-- [ ] Job Opening
-- [ ] Job Applicant
-- [ ] Job Offer
-- [ ] Interview / Interview Round / Interview Feedback
-- [ ] Staffing Plan
-
-Also check whether they live in `hrms` or in ERPNext, because that changes
-what you install.
-
-~~**ABORT IF ABSENT.**~~ Cleared. Proceed to questions 3-5, which are now
-the open risks.
+### Abort Condition 4: Schema Validation Impedance
+* **Hazard:** Frappe DocTypes are dynamically typed at runtime. If recruiters modify job blueprints via Desk UI, malformed criteria may bypass the strict Pydantic models defined in `JobBlueprint`.
+* **Pass Criteria:** Every candidate evaluation must validate against Pydantic schemas before running the rules engine. Any schema violation must trigger an explicit exception and alert the recruiter.
+* **Action on Failure:** Require strict JSON Schema validation within Frappe DocType validation hooks (`validate()`).
 
 ---
 
-## 3. Can Frappe express job-scoped permissions?
+## 3. Test Matrix & Verification Protocols
 
-`HR-Screening` enforces three states, tested in `tests/test_job_scope.py`:
-
-- `ALL_TENANT_JOBS` — sees every job
-- `ASSIGNED_JOBS_ONLY` — sees only assigned reqs
-- `NO_JOBS` — sees nothing, and this must be a denial rather than an
-  unfiltered query
-
-Try to reproduce that with User Permissions on Job Opening:
-
-- [ ] Recruiter A sees only their assigned opening
-- [ ] Recruiter A is denied a direct URL to Recruiter B's opening
-- [ ] A recruiter with no assignment sees an empty list, not all of them
-- [ ] Applicants inherit the restriction from their opening
-
-**Abort if:** the third case leaks. "No assignments" silently meaning "no
-filter" is the exact bug that was fixed in `HR-Screening`, and inheriting it
-from a framework is worse than owning it.
-
----
-
-## 4. Does a background job survive a 180-second model call?
-
-`ResumeParserClient` has a 180-second timeout, and a job can receive 1,000+
-applicants. This has to run on the queue, not in a request.
-
-```bash
-bench new-app hr_screening
+```text
+       Simulated Batch Intake (100–500 Synthetic Resumes)
+                               │
+                               ▼
+     ┌───────────────────────────────────────────────────┐
+     │ Test Step 1: Ingestion & Non-Blocking Dispatch    │
+     │ Measure: Desk API p99 latency & queue time        │
+     └─────────────────────────┬─────────────────────────┘
+                               │
+                               ▼
+     ┌───────────────────────────────────────────────────┐
+     │ Test Step 2: vLLM Batch Inference Stability       │
+     │ Measure: GPU VRAM utilization & token throughput  │
+     └─────────────────────────┬─────────────────────────┘
+                               │
+                               ▼
+     ┌───────────────────────────────────────────────────┐
+     │ Test Step 3: PII Minimization Audit               │
+     │ Measure: SQL inspection of MariaDB tabVersion     │
+     └─────────────────────────┬─────────────────────────┘
+                               │
+                               ▼
+     ┌───────────────────────────────────────────────────┐
+     │ Test Step 4: Deterministic Rules & Scorecard Sync │
+     │ Measure: Score consistency across duplicate runs  │
+     └───────────────────────────────────────────────────┘
 ```
 
-Then prove the smallest end-to-end path:
+### Verification Scripts
 
-- [ ] A custom doctype saves
-- [ ] `hooks.py` `doc_events` fires on Job Applicant update
-- [ ] `frappe.enqueue(..., queue="long", timeout=900)` runs
-- [ ] The job makes an HTTP call taking 180s and completes
-- [ ] A failure lands somewhere visible, not silently
+#### Protocol 1: PII Audit Verification
+Run the following SQL check on the Frappe MariaDB instance after processing 50 synthetic test candidates:
+```sql
+-- Ensure no extracted resume text or candidate address data exists in Frappe audit tables
+SELECT count(*) AS pii_leak_count
+FROM tabVersion
+WHERE docname LIKE 'APPL-%'
+  AND (
+      data LIKE '%street%' 
+      OR data LIKE '%phone%' 
+      OR data LIKE '%gender%' 
+      OR data LIKE '%university%'
+  );
+-- PASS REQUIREMENT: pii_leak_count == 0
+```
 
-Check the default `long` queue timeout — it may need raising in
-`common_site_config.json`.
-
-**Abort if:** long jobs cannot be made reliable. Parsing is the product.
-
----
-
-## 5. What does upload handling look like?
-
-Frappe stores uploads through its `File` doctype, not through the quarantine
-bucket `HR-Screening` uses. That code has real security work in it —
-magic-byte validation, a path-traversal fix with regression tests, size
-capping before allocation.
-
-- [ ] Where does an attachment physically land?
-- [ ] Can a file be held unscanned before anything else reads it?
-- [ ] Can uploads be restricted by content type and size?
-- [ ] Are files under the web root, and are they access-controlled?
-
-**Not an abort condition**, but budget real time for it. This is where a
-mistake matters most, and it must be redesigned against Frappe rather than
-translated across.
-
----
-
-## Decision
-
-Record the outcome here before writing any porting code.
-
-- Date:
-- Frappe HR version:
-- Recruitment doctypes present: yes / no
-- Job-scoped permissions reproducible: yes / no
-- Long background jobs reliable: yes / no
-- Decision: proceed / abort / revisit
-- Notes:
+#### Protocol 2: Worker Concurrency & VRAM Stress Test
+Execute the test runner against the local GPU endpoint using Locust or pytest-benchmark:
+```bash
+# Verify vLLM throughput and concurrency limits under multi-page resume load
+pytest tests/integration/test_vllm_client.py \
+    --benchmark-autosave \
+    --concurrency=4 \
+    --num-resumes=100
+```

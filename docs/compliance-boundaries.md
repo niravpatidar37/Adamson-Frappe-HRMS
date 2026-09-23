@@ -1,114 +1,69 @@
-# Compliance Boundaries and Product Commitments
+# AI Governance, Compliance Boundaries & Data Classification
+**Documents:** `ai-governance.md` | `compliance-boundaries.md` | `data-classification.md`  
+**Classification:** Enterprise AI Compliance Policy  
+**Scope:** Automated Employment Decision Tools (AEDT) & High-Risk AI Systems
 
-> **Ported from the `HR-Screening` repo**, where it was written against a
-> FastAPI + SQLAlchemy implementation. The requirements, threat analysis,
-> security model and privacy rules still hold. Anything naming FastAPI
-> routers, SQLAlchemy models, Alembic or arq queues describes the previous
-> implementation and is now Frappe's responsibility — see
-> [frappe-mapping.md](frappe-mapping.md). Not yet revised.
+---
 
-> **Important:** This document is an engineering/compliance-planning artifact, not legal advice. It identifies product controls that require validation by qualified employment, privacy, accessibility, security, and procurement counsel for each jurisdiction and customer deployment.
+## Part 1: AI Governance Framework (`ai-governance.md`)
 
-## 1. Product position
+### 1. High-Risk System Classification
+The Adamson AI Screening Engine operates as an **Automated Employment Decision Support Tool (AEDT)** under:
+* **NYC Local Law 144 (AEDT Audit Requirements)**
+* **EU AI Act (Annex III - High-Risk Employment AI)**
+* **EEOC Uniform Guidelines on Employee Selection Procedures (UGESP)**
 
-The platform is an AI-assisted applicant-tracking and recruiting decision-support system.
+### 2. Prohibited AI Behaviors & Non-Negotiable Invariants
+1. **No Autonomous Negative Rejections:** The system generates match scorecards and evidence trails. It is strictly prohibited from executing terminal rejection decisions without an explicit recruiter review step.
+2. **Deterministic Rules Over Generative Scoring:** Large Language Models are used exclusively for document extraction (rasterized text $\rightarrow$ structured JSON). Final candidate evaluation is calculated using a deterministic rules engine.
+3. **Disallowed Proxy Features:** Scoring criteria cannot evaluate or derive proxies for protected characteristics:
+   - Graduating class years (age proxy).
+   - Institution names or postal codes (race/socioeconomic proxy).
+   - Pronouns, extracurricular associations, or gap years.
 
-It is designed to:
+### 3. Bias Audit & Adverse Impact Monitoring
+The system monitors scoring distributions using the **Four-Fifths (80%) Rule**:
+$$\text{Impact Ratio} = \frac{\text{Selection Rate of Protected Group}}{\text{Selection Rate of Most Selected Group}} \ge 0.80$$
+If an active job requisition violates this threshold, the system flags the requisition for immediate human auditing.
 
-- Parse documents and organize candidate information.
-- Apply approved, explicit job criteria.
-- Present evidence-backed scorecards and review queues.
-- Support authorized recruiter search and candidate communications.
-- Maintain audit trails and privacy workflows.
+---
 
-It is not designed to:
+## Part 2: Compliance Boundaries (`compliance-boundaries.md`)
 
-- Make autonomous employment decisions.
-- Infer protected characteristics.
-- Use opaque black-box scoring as the sole basis for rejection.
-- Send external recruitment messages without human approval.
+```text
+ ┌────────────────────────────────────────────────────────┐
+ │           CANDIDATE PII BOUNDARY (Frappe Desk)         │
+ │   Contains: Full Name, Address, Contact, Raw PDF       │
+ └───────────────────────────┬────────────────────────────┘
+                             │
+                  One-Way Minimization Boundary
+                             ▼
+ ┌────────────────────────────────────────────────────────┐
+ │        SCREENING ENGINE MEMORY SPACE (FastAPI)         │
+ │   Transforms raw profile into anonymized schema        │
+ └───────────────────────────┬────────────────────────────┘
+                             │
+                             ▼
+ ┌────────────────────────────────────────────────────────┐
+ │         AUDIT LEDGER BOUNDARY (PostgreSQL)             │
+ │   Stores: Composite Score, Evidence Quotes, Hash       │
+ │   NEVER STORES: PII, Raw Resume Text, Identity         │
+ └────────────────────────────────────────────────────────┘
+```
 
-## 2. Engineering controls mapped to obligations
+### Statutory Boundary Mappings
+| Statutory Standard | System Implementation |
+| :--- | :--- |
+| **NYC Local Law 144** | Annual independent bias audit; public posting of selection rates; 10-day candidate notification mechanism. |
+| **EU AI Act (Art. 9–15)** | Continuous risk management; technical logging of all scoring executions; human-in-the-loop oversight. |
+| **GDPR (Art. 22)** | Prohibition of solely automated profiling producing legal or significant effects on candidates. |
 
-| Control area | Product commitment | Evidence maintained |
-|---|---|---|
-| AI transparency | Display AI-assistance disclosure where required and maintain notice versions | Published job/application page version, notice acceptance record |
-| Human oversight | Recruiter makes final shortlist/rejection/outreach decision | Human decision event, approver, timestamp, override reason |
-| Explainability | Show job-specific criteria, evidence, gaps, and uncertainty | Criteria version, scorecard evidence, source references |
-| Privacy | Minimize collection, restrict access, provide rights workflow, delete on schedule | Data inventory, access audit, request records, deletion ledger |
-| Security | Encrypt data, use least privilege, secure uploads, segment networks, scan supply chain | IaC, scan results, role review, security logs, incident records |
-| Fairness | Exclude prohibited/proxy signals, evaluate quality and fairness risks | Rubric approval, model-evaluation report, override/false-negative sampling |
-| Accessibility | Provide an accessible candidate flow and accommodation contact/process | Accessibility tests, candidate notice, accommodation workflow |
-| Email communications | Validate consent/preferences and apply suppression/idempotency controls | Template version, approval, send/delivery/opt-out record |
-| Recordkeeping | Segregate and retain required minimal records based on jurisdiction | Retention policy, exception approval, record inventory |
+---
 
-## 3. Ontario/Canada deployment considerations
+## Part 3: Data Classification Policy (`data-classification.md`)
 
-For Ontario deployments, public job-posting requirements in force from January 1, 2026 include obligations for covered employers to disclose the use of AI when AI is used to screen, assess, or select applicants in publicly advertised job postings. The platform supports this through versioned job-posting and application notices, but the employer remains responsible for determining applicability and correct wording. [Ontario Employment Standards Act, 2000, s. 8.4; Ontario Regulation 476/24.]
-
-The platform must not assume its default 60-day candidate-PII deletion schedule overrides statutory employment recordkeeping or other legal obligations. The system therefore supports data minimization, segregation of required records, legal holds, documented exceptions, and time-bound deletion of non-required candidate content. Legal review must define the deployment-specific retention schedule.
-
-Canadian privacy obligations can arise federally, provincially, contractually, and sectorally. A deployment must identify controller/processor roles, data residency, cross-border transfer implications, security safeguards, notice/consent requirements, access/correction processes, and breach response obligations before production use.
-
-## 4. Required pre-production reviews
-
-Before processing real candidate data, obtain and document:
-
-- Employment-law review for each targeted hiring jurisdiction.
-- Privacy impact assessment or equivalent review.
-- Security architecture review and penetration-test plan.
-- Accessibility review for public candidate application experience.
-- Vendor/processor assessment for identity, email, ATS, hosting, security, analytics, and any model provider.
-- AI governance approval for model, prompt, rubric, and evaluation evidence.
-- Data retention and backup-retention approval.
-- Incident response and breach-notification ownership.
-
-## 5. Customer/employer responsibilities
-
-The platform can enforce workflow controls, but each employer/customer remains responsible for:
-
-- Defining lawful, job-related criteria.
-- Approving postings, notices, compensation/location information, and AI disclosure wording.
-- Making final employment decisions.
-- Ensuring recruiters use the tool according to training and policy.
-- Determining required records, retention periods, legal holds, and candidate notices.
-- Handling accommodation, discrimination, complaint, and appeal obligations.
-- Maintaining required email and communication consents/preferences.
-
-## 6. Controls that must not be bypassed
-
-- No production use without approved candidate notice and privacy contact.
-- No active AI scoring without a human-approved job-criteria version.
-- No autonomous rejection, hiring, or candidate communication.
-- No model training on candidate data by default.
-- No external candidate-data transfer without approved data-flow review.
-- No unscanned document enters parser/scoring workflow.
-- No cross-tenant search or export without server-side authorization.
-- No deletion exception without documented reason, owner, approval, and review date.
-
-## 7. Evidence package for audit or enterprise review
-
-Maintain an exportable evidence package containing:
-
-- Current architecture and data-flow diagram.
-- Data inventory/classification and retention schedule.
-- Threat model, security testing, penetration test summary, and remediation status.
-- Model inventory, evaluation reports, prompt/rubric change history, and rollback records.
-- Access-control matrix and periodic access review evidence.
-- Audit-log retention/integrity design.
-- Incident response and disaster-recovery test evidence.
-- Vendor/processor security and privacy assessments.
-- Candidate notice and AI disclosure versions.
-
-## 8. Open legal/compliance questions
-
-Track these before launch:
-
-- Which jurisdictions and employer sizes are in scope?
-- What job-posting/application-form records must be retained, for how long, and in what form?
-- Is candidate consent required or is another lawful basis relied upon for each processing purpose?
-- What are the cross-border storage/model-processing restrictions?
-- What accessibility accommodations and alternate application channels are required?
-- What bias/adverse-impact testing is lawful, feasible, and appropriate for the organization?
-- What communication rules apply to recruiting email/SMS and candidate opt-out handling?
-- What breach reporting, notification, and audit obligations apply?
+| Tier | Classification | Data Elements | Retention Period | Storage Location |
+| :--- | :--- | :--- | :--- | :--- |
+| **Tier 1** | **Direct PII** | Candidate name, email, phone, physical address, raw resume attachment. | 180 days post-requisition close (or per candidate deletion request). | Frappe HR File System / Encrypted Object Storage. |
+| **Tier 2** | **Anonymized Capability Data** | Normalized skill set, years of relevant experience, structured work history. | Transient (In-memory execution only). | None (Discarded post-evaluation). |
+| **Tier 3** | **Immutable Audit Evidence** | Objective scorecard metrics, verbatim evidence citations, cryptographic integrity hash. | 3 years (Statutory compliance requirement). | PostgreSQL `scorecard_audits` (Append-only). |
