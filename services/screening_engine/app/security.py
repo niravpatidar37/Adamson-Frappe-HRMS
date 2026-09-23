@@ -32,12 +32,31 @@ def _unauthorized() -> HTTPException:
     return HTTPException(status.HTTP_401_UNAUTHORIZED, "unauthorized")
 
 
+def _secret_for(key_id: str | None) -> str:
+    """Resolve which shared secret a request is claiming to use.
+
+    Rotation is why this exists: for the overlap both keys verify, so Frappe
+    and the engine do not have to restart in the same instant.
+    """
+    settings = get_settings()
+    if key_id is None or key_id == settings.callback_key_id:
+        return settings.callback_secret
+    if (
+        settings.previous_callback_key_id
+        and settings.previous_callback_secret
+        and key_id == settings.previous_callback_key_id
+    ):
+        return settings.previous_callback_secret
+    raise _unauthorized()
+
+
 async def verify_signature(
     request: Request,
     # Optional at the framework level so a missing header is a 401 like every
     # other failure, rather than a 422 that tells a prober what was wrong.
     x_screening_timestamp: str | None = Header(default=None),
     x_screening_signature: str | None = Header(default=None),
+    x_screening_key_id: str | None = Header(default=None),
 ) -> None:
     if not x_screening_timestamp or not x_screening_signature:
         raise _unauthorized()
@@ -55,6 +74,6 @@ async def verify_signature(
         # back to checking headers only, which authenticates nothing.
         raise _unauthorized()
 
-    expected = sign(body, x_screening_timestamp, get_settings().callback_secret)
+    expected = sign(body, x_screening_timestamp, _secret_for(x_screening_key_id))
     if not hmac.compare_digest(expected, x_screening_signature):
         raise _unauthorized()

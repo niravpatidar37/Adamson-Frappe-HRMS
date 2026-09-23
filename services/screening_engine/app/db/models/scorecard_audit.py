@@ -30,6 +30,11 @@ class ScreeningReceipt(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     job_opening_id: Mapped[str] = mapped_column(String(140), index=True)
 
     checksum_sha256: Mapped[str] = mapped_column(String(64))
+
+    # Unique, so a retried dispatch cannot become a second screening of the
+    # same document. Frappe supplies it; the engine derives one when it does
+    # not, because "the caller forgot" must not mean "score them twice".
+    idempotency_key: Mapped[str] = mapped_column(String(255), unique=True, index=True)
     original_filename: Mapped[str] = mapped_column(String(512))
     # Where the quarantined bytes are, relative to settings.quarantine_root.
     object_key: Mapped[str] = mapped_column(String(512))

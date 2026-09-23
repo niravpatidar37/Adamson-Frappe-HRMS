@@ -39,6 +39,12 @@ class Settings(BaseSettings):
     # No default: an unset secret must fail loudly rather than silently
     # accepting unsigned callbacks.
     callback_secret: str = Field(min_length=32)
+    # Names the secret in use. A request may carry x-screening-key-id; during
+    # a rotation both sides run with the new key while the old one still
+    # verifies, so neither has to restart at the same instant.
+    callback_key_id: str = "v1"
+    previous_callback_key_id: str | None = None
+    previous_callback_secret: str | None = None
 
 
 @lru_cache

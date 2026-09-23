@@ -25,7 +25,8 @@ doc_events = {
         # and would run inside the transaction that saves the applicant.
         "after_insert": "adamson_screening_bridge.tasks.dispatch_screening",
     },
-    "Job Opening": {
-        "on_update": "adamson_screening_bridge.tasks.handle_requisition_closed",
-    },
+    # Job Opening on_update is deliberately NOT registered yet.
+    # handle_requisition_closed still raises NotImplementedError, and a hook
+    # that raises would make every edit to a job opening fail in the UI.
+    # Register it in the same commit that implements it.
 }

@@ -233,7 +233,39 @@ Editing `tasks.py` afterwards only needs `bench restart` — the editable
 install means the host file is what runs, provided you also bind-mount it.
 Without a mount, rebuild the image and recreate.
 
-### 4. What to check
+### 4. Point the bridge at the engine
+
+The two stacks are separate compose projects, so Frappe cannot reach the
+engine as `localhost` — that is its own container. On Docker Desktop
+`host.docker.internal` resolves to the host, where the engine publishes 8100.
+
+The secret must be byte-identical to `SCREENING_CALLBACK_SECRET` in
+`deploy\.env`; both sides sign with it.
+
+```powershell
+docker compose -f docker-compose.frappe.yml exec backend `
+  bench --site frontend set-config screening_engine_url http://host.docker.internal:8100
+docker compose -f docker-compose.frappe.yml exec backend `
+  bench --site frontend set-config screening_callback_secret "paste-the-same-value-as-deploy-dot-env"
+docker compose -f docker-compose.frappe.yml exec backend `
+  bench --site frontend set-config screening_key_id v1
+docker compose -f docker-compose.frappe.yml restart backend queue-short queue-long
+```
+
+Then create a Job Applicant with a PDF in Resume Attachment. Within a second
+or two Screening Status should turn **Queued** and Tracking ID should hold a
+UUID. Confirm the engine agrees:
+
+```powershell
+docker compose -f docker-compose.engine.yml exec postgres `
+  psql -U screening -d screening -c "select applicant_id, job_opening_id, status, idempotency_key from screening_receipts order by created_at desc limit 5;"
+```
+
+If Screening Status shows **Error**, the reason is in Screening Error on the
+applicant, with detail in Frappe's Error Log. The bridge never logs the
+request itself — it holds the resume bytes.
+
+### 5. What to check
 
 Work through [`../docs/phase-0-spike.md`](../docs/phase-0-spike.md). Question 2
 is already answered; start at 3.
