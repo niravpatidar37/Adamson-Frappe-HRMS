@@ -22,12 +22,19 @@ class Settings(BaseSettings):
 
     redis_url: str = "redis://localhost:6379/0"
 
-    # Local vLLM serving qwen3-vl. Private network only.
-    vlm_endpoint: str = "http://localhost:8001/parse"
+    # vLLM's OpenAI-compatible chat-completions endpoint. Private network
+    # only. vllm/vllm-openai serves this shape; the older custom /parse
+    # wrapper this once pointed at does not exist.
+    vlm_endpoint: str = "http://localhost:8001/v1/chat/completions"
+    vlm_model: str = "resume-parser"
     vlm_timeout_seconds: float = 180.0
 
-    max_upload_bytes: int = 20 * 1024 * 1024
-    max_resume_pages: int = 15
+    # 5 MB and 4 pages. The page cap is the binding constraint on a GPU, not
+    # the model weights: every page becomes thousands of vision tokens. A
+    # document over the cap goes to human review rather than being truncated,
+    # because screening half a resume is worse than screening none of it.
+    max_upload_bytes: int = 5 * 1024 * 1024
+    max_resume_pages: int = 4
 
     # Uploaded bytes live here until something has looked at them. Not
     # served over HTTP by anything; the worker reads it from disk.

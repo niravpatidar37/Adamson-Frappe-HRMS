@@ -15,17 +15,19 @@ from screening.schemas.candidate_profile import CandidateProfile
 
 
 class ParserService:
-    def __init__(self, client: ResumeParserClient | None = None) -> None:
-        self._client = client or ResumeParserClient()
+    def __init__(self, client: ResumeParserClient) -> None:
+        # No default: the client needs an endpoint and a model name, and a
+        # service that invents its own would hide where they came from.
+        self._client = client
 
-    async def parse_resume(self, page_image_urls: list[str]) -> tuple[CandidateProfile | None, str]:
+    async def parse_resume(self, page_images: list[bytes]) -> tuple[CandidateProfile | None, str]:
         """Return (profile_or_none, raw_output).
 
         On invalid JSON or schema-validation failure, returns
         (None, raw_output) so the caller can mark the application
         `needs_review` rather than silently rejecting the candidate.
         """
-        raw_output = await self._client.parse(page_image_urls)
+        raw_output = await self._client.parse(page_images)
         try:
             data = json.loads(raw_output)
             profile = CandidateProfile.model_validate(data)

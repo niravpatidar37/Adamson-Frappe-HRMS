@@ -13,6 +13,10 @@ dependencies = [
     "alembic>=1.14",
     "celery[redis]>=5.4",
     "httpx>=0.27",
+    # Rasterises PDFs without a poppler binary; ships manylinux wheels, so
+    # the worker image needs no system packages.
+    "pypdfium2>=4.30",
+    "pillow>=10.4",
     "python-multipart>=0.0.12",
     "structlog>=24.4",
 ]
