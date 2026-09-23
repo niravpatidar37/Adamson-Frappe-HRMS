@@ -24,3 +24,9 @@ testpaths = ["tests"]
 # The domain package is importable without installing the engine, so the unit
 # tests run in under a second with no database and no web server.
 pythonpath = ["services/screening_engine"]
+filterwarnings = [
+    # Both come from starlette's own TestClient module, not from this
+    # code, and both are already on the latest release.
+    "ignore:Using `httpx` with `starlette.testclient` is deprecated:UserWarning",
+    "ignore:The anyio.abc.BlockingPortal alias is deprecated:DeprecationWarning",
+]
