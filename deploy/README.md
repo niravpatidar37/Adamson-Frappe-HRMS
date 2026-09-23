@@ -217,6 +217,18 @@ Job Applicant: Screening Status, Tracking ID, Match Score, Qualification Tier,
 Evidence, Model Version, Blueprint Version and Screening Error should all be
 present and read-only.
 
+If `sync_fixtures` raises `KeyError: 'name'`, the fixture is missing the
+autoname Frappe's importer reads directly. Custom Field names as
+`{dt}-{fieldname}`, and each record also needs a `modified` timestamp —
+without it the *second* import raises `TypeError` comparing `None` against
+the row's timestamp, so `bench migrate` keeps failing. Bump that timestamp to
+force a re-import after editing a field; leaving it alone means the database
+row wins.
+
+The app is added to `installed_apps` before fixtures sync, so a fixture
+failure still leaves it installed. Fix the fixture, rebuild the image and run
+`bench migrate` — reinstalling is not needed.
+
 Editing `tasks.py` afterwards only needs `bench restart` — the editable
 install means the host file is what runs, provided you also bind-mount it.
 Without a mount, rebuild the image and recreate.
