@@ -175,7 +175,53 @@ docker compose -f docker-compose.frappe.yml logs -f create-site
 Site creation runs once and installs both erpnext and hrms. Then open
 <http://localhost:8081> — Administrator / admin.
 
-### 3. What to check
+### 3. Install the bridge app
+
+`adamson/frappe-hr:16` is `custom:16` plus `apps/adamson_screening_bridge`,
+copied in and pip-installed editable. Do not try to bind-mount the app on its
+own: `apps/` is image content rather than a volume, and `configurator` writes
+`ls -1 apps > sites/apps.txt`, so an app listed there but missing from the
+bench's Python env takes every container down on import.
+
+```powershell
+cd "F:\Adamson Frappe HRMS"
+docker build -t adamson/frappe-hr:16 -f deploy\frappe-bridge.Dockerfile .
+
+cd deploy
+docker compose -f docker-compose.frappe.yml up -d --force-recreate
+```
+
+That rebuild is seconds — one layer on top of an image that already exists.
+Then install it on the site, which is the stateful half and writes to the
+database:
+
+```powershell
+docker compose -f docker-compose.frappe.yml exec backend `
+  bench --site frontend install-app adamson_screening_bridge
+docker compose -f docker-compose.frappe.yml exec backend `
+  bench --site frontend migrate
+docker compose -f docker-compose.frappe.yml exec backend `
+  bench --site frontend clear-cache
+docker compose -f docker-compose.frappe.yml restart backend queue-short queue-long scheduler
+```
+
+Verify:
+
+```powershell
+docker compose -f docker-compose.frappe.yml exec backend `
+  bench --site frontend list-apps
+```
+
+Expect `frappe`, `erpnext`, `hrms`, `adamson_screening_bridge`. Then open a
+Job Applicant: Screening Status, Tracking ID, Match Score, Qualification Tier,
+Evidence, Model Version, Blueprint Version and Screening Error should all be
+present and read-only.
+
+Editing `tasks.py` afterwards only needs `bench restart` — the editable
+install means the host file is what runs, provided you also bind-mount it.
+Without a mount, rebuild the image and recreate.
+
+### 4. What to check
 
 Work through [`../docs/phase-0-spike.md`](../docs/phase-0-spike.md). Question 2
 is already answered; start at 3.

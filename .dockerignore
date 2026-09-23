@@ -1,0 +1,15 @@
+# Only deploy/frappe-bridge.Dockerfile builds from the repository root, and it
+# needs apps/ and nothing else.
+.git/
+.github/
+.venv/
+docs/
+services/
+tests/
+scripts/
+deploy/
+*.pdf
+**/__pycache__/
+**/.pytest_cache/
+**/.ruff_cache/
+**/.mypy_cache/

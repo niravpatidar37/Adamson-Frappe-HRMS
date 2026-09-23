@@ -2,7 +2,8 @@
 #
 # A copy of frappe_docker/pwd.yml with two changes:
 #   1. image  frappe/erpnext:v16.35.0 -> custom:16  (the stock ERPNext image
-#      does not contain hrms; custom:16 is built from apps.json)
+#      does not contain hrms; custom:16 is built from apps.json, and
+#      adamson/frappe-hr:16 adds the bridge app on top of it)
 #   2. site creation also installs hrms
 #
 # Build custom:16 first — see deploy/README.md. Not a production config:
@@ -10,7 +11,7 @@
 
 services:
   backend:
-    image: custom:16
+    image: adamson/frappe-hr:16
     networks:
       - frappe_network
     deploy:
@@ -29,7 +30,7 @@ services:
         condition: service_completed_successfully
 
   configurator:
-    image: custom:16
+    image: adamson/frappe-hr:16
     networks:
       - frappe_network
     deploy:
@@ -58,7 +59,7 @@ services:
       - logs:/home/frappe/frappe-bench/logs
 
   create-site:
-    image: custom:16
+    image: adamson/frappe-hr:16
     networks:
       - frappe_network
     deploy:
@@ -118,7 +119,7 @@ services:
       - db-data:/var/lib/mysql
 
   frontend:
-    image: custom:16
+    image: adamson/frappe-hr:16
     networks:
       - frappe_network
     depends_on:
@@ -148,7 +149,7 @@ services:
       - "127.0.0.1:8081:8080"
 
   queue-long:
-    image: custom:16
+    image: adamson/frappe-hr:16
     networks:
       - frappe_network
     deploy:
@@ -170,7 +171,7 @@ services:
         condition: service_completed_successfully
 
   queue-short:
-    image: custom:16
+    image: adamson/frappe-hr:16
     networks:
       - frappe_network
     deploy:
@@ -210,7 +211,7 @@ services:
         condition: on-failure
 
   scheduler:
-    image: custom:16
+    image: adamson/frappe-hr:16
     networks:
       - frappe_network
     deploy:
@@ -227,7 +228,7 @@ services:
         condition: service_completed_successfully
 
   websocket:
-    image: custom:16
+    image: adamson/frappe-hr:16
     networks:
       - frappe_network
     deploy:

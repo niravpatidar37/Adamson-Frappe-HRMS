@@ -1,0 +1,5 @@
+# Frappe reads this on every `bench migrate`. Empty is correct for now, but
+# the file has to exist.
+[pre_model_sync]
+
+[post_model_sync]

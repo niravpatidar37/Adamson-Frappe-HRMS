@@ -6,9 +6,24 @@
     "fieldname": "custom_screening_status",
     "label": "Screening Status",
     "fieldtype": "Select",
-    "options": "\nPending\nProcessing\nScored\nNeeds Review\nError",
     "read_only": 1,
-    "insert_after": "status"
+    "no_copy": 1,
+    "insert_after": "status",
+    "options": "\nPending\nQueued\nProcessing\nScored\nError",
+    "default": "Pending",
+    "in_list_view": 1
+  },
+  {
+    "doctype": "Custom Field",
+    "dt": "Job Applicant",
+    "module": "Adamson Screening Bridge",
+    "fieldname": "custom_screening_tracking_id",
+    "label": "Tracking ID",
+    "fieldtype": "Data",
+    "read_only": 1,
+    "no_copy": 1,
+    "insert_after": "custom_screening_status",
+    "description": "Receipt id issued by the screening engine."
   },
   {
     "doctype": "Custom Field",
@@ -16,31 +31,71 @@
     "module": "Adamson Screening Bridge",
     "fieldname": "custom_match_score",
     "label": "Match Score",
-    "fieldtype": "Int",
+    "fieldtype": "Float",
     "read_only": 1,
-    "description": "Advisory only. Not a hiring decision and not a ranking.",
-    "insert_after": "custom_screening_status"
+    "no_copy": 1,
+    "insert_after": "custom_screening_tracking_id",
+    "precision": "2",
+    "description": "Advisory only. Not a hiring decision and not a ranking."
   },
   {
     "doctype": "Custom Field",
     "dt": "Job Applicant",
     "module": "Adamson Screening Bridge",
-    "fieldname": "custom_recommendation",
-    "label": "Recommendation",
+    "fieldname": "custom_qualification_tier",
+    "label": "Qualification Tier",
     "fieldtype": "Select",
-    "options": "\nStrong Match\nReview\nNot Currently Shortlisted",
     "read_only": 1,
-    "insert_after": "custom_match_score"
+    "no_copy": 1,
+    "insert_after": "custom_match_score",
+    "options": "\nStrong Match\nReview\nNot Currently Shortlisted"
   },
   {
     "doctype": "Custom Field",
     "dt": "Job Applicant",
     "module": "Adamson Screening Bridge",
-    "fieldname": "custom_scorecard_evidence_url",
+    "fieldname": "custom_scorecard_url",
     "label": "Evidence",
     "fieldtype": "Data",
     "read_only": 1,
-    "description": "Opens the scorecard in the screening engine.",
-    "insert_after": "custom_recommendation"
+    "no_copy": 1,
+    "insert_after": "custom_qualification_tier",
+    "options": "URL",
+    "description": "Opens the scorecard in the screening engine."
+  },
+  {
+    "doctype": "Custom Field",
+    "dt": "Job Applicant",
+    "module": "Adamson Screening Bridge",
+    "fieldname": "custom_screening_model_version",
+    "label": "Model Version",
+    "fieldtype": "Data",
+    "read_only": 1,
+    "no_copy": 1,
+    "insert_after": "custom_scorecard_url",
+    "description": "Which model produced the score. Needed to reproduce it."
+  },
+  {
+    "doctype": "Custom Field",
+    "dt": "Job Applicant",
+    "module": "Adamson Screening Bridge",
+    "fieldname": "custom_screening_blueprint_version",
+    "label": "Blueprint Version",
+    "fieldtype": "Int",
+    "read_only": 1,
+    "no_copy": 1,
+    "insert_after": "custom_screening_model_version",
+    "description": "Criteria version the candidate was screened against."
+  },
+  {
+    "doctype": "Custom Field",
+    "dt": "Job Applicant",
+    "module": "Adamson Screening Bridge",
+    "fieldname": "custom_screening_error",
+    "label": "Screening Error",
+    "fieldtype": "Small Text",
+    "read_only": 1,
+    "no_copy": 1,
+    "insert_after": "custom_screening_blueprint_version"
   }
 ]
