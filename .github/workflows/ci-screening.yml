@@ -1,0 +1,19 @@
+name: ci-screening
+
+on:
+  push:
+    paths: ["services/**", "tests/**", "pyproject.toml", ".github/workflows/ci-screening.yml"]
+  pull_request:
+    paths: ["services/**", "tests/**", "pyproject.toml", ".github/workflows/ci-screening.yml"]
+
+jobs:
+  unit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+      # The domain tests need pydantic and httpx only. No database, no Frappe,
+      # no bench. That is the point of keeping screening/ framework-free.
+      - run: uv run --with pydantic --with httpx --with pytest pytest tests/unit -q

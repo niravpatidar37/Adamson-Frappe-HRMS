@@ -22,11 +22,17 @@ away in production. Note what broke before moving on.
 
 ---
 
-## 2. Do the recruitment doctypes exist?  ← **FUNDAMENTAL**
+## 2. Do the recruitment doctypes exist?  ← **ANSWERED: yes**
 
-This is the assumption everything rests on, and it is **unverified**. The
-Frappe HR README does not list a recruitment module, and the repository tree
-could not be read to confirm it.
+**Resolved 2026-09-23.** They exist, inside the `hr` module — `modules.txt`
+lists only HR and Payroll, and the README never mentions recruitment, which
+is why this looked doubtful. Confirmed by reading the doctype JSON directly:
+job_opening, job_applicant, job_offer, interview, interview_feedback,
+job_requisition, staffing_plan, appointment_letter. Field-level mapping is in
+[frappe-mapping.md](frappe-mapping.md).
+
+Still worth confirming in your own running instance that they are enabled and
+behave as documented:
 
 Look in the desk UI for:
 
@@ -39,10 +45,8 @@ Look in the desk UI for:
 Also check whether they live in `hrms` or in ERPNext, because that changes
 what you install.
 
-**ABORT IF ABSENT.** Without these you are adopting a payroll and leave
-system to get authentication and a UI, and paying a whole framework for it.
-If they are missing, the right answer is probably to keep building
-`HR-Screening` and add Keycloak.
+~~**ABORT IF ABSENT.**~~ Cleared. Proceed to questions 3-5, which are now
+the open risks.
 
 ---
 

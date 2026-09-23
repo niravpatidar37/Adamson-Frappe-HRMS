@@ -1,0 +1,25 @@
+# vLLM serving the resume parser on the GPU node.
+#
+# Separate file so the stack can run without a GPU during development:
+#   docker compose -f docker-compose.yml up                      # no GPU
+#   docker compose -f docker-compose.yml -f docker-compose.gpu.yml up
+#
+# Placeholder. Model path, tensor parallel size and quantisation depend on
+# the card Adamson has, which is not decided.
+
+services:
+  vllm:
+    image: vllm/vllm-openai:latest
+    command:
+      - --model=sukhrobnurali/qwen3vl-resume-parser
+      - --served-model-name=resume-parser
+    # Never published. Reachable only from the worker pool.
+    expose:
+      - "8000"
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]

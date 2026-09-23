@@ -1,0 +1,12 @@
+# Reverse proxy. Only Frappe is reachable; the screening engine is not
+# published and is reachable only from Frappe on the internal network.
+#
+# Placeholder — revisit when the deployment host is decided.
+
+hr.adamson.internal {
+	reverse_proxy frappe-frontend:8080
+}
+
+# Deliberately absent: a site block for the screening engine. Adding one
+# would put the evidence endpoints, and the resumes behind them, on the
+# network edge.

@@ -1,0 +1,11 @@
+[project]
+name = "adamson_screening_bridge"
+version = "0.1.0"
+description = "Frappe bridge to the Adamson screening engine"
+requires-python = ">=3.10"
+# No ML or parsing dependencies on purpose. This app dispatches and records.
+dependencies = []
+
+[build-system]
+requires = ["flit_core >=3.4,<4"]
+build-backend = "flit_core.buildapi"

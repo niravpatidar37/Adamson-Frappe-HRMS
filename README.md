@@ -1,67 +1,51 @@
 # Adamson Frappe HRMS
 
-HR platform for Adamson, built on [Frappe HR](https://github.com/frappe/hrms),
-with AI resume screening added as a custom app.
+Frappe HR as the system of record and recruiter UI, with a private AI
+screening engine alongside it. Everything runs on Adamson's own server.
 
-> **Status: evaluation.** Nothing is committed to this approach yet. Work
-> through `docs/phase-0-spike.md` first — it has abort conditions, and one of
-> them is fundamental.
-
-## Why this exists
-
-Adamson needs an HR system that screens resumes at volume using a local
-vision-language model, with candidate data never leaving the building.
-
-Two routes were considered:
-
-**Build it all** — the existing [`HR-Screening`](../HR-Screening) repo:
-FastAPI, SQLAlchemy, Postgres. Has a working rules engine, scoring-profile
-data-minimization boundary, resume-parser client and 92 tests. Missing
-authentication, audit logging, background workers and an admin UI.
-
-**Adopt Frappe HR** — a mature open-source HRMS that already provides
-authentication, roles and permissions, audit trails, workflow and a UI.
-Provides nothing for AI resume screening, which is the actual point of the
-project.
-
-The deciding factors:
-
-- Deployment is **internal only**, on Adamson's own server at headquarters.
-  GPL-3.0 therefore imposes no obligations: internal use is not distribution,
-  and Frappe HR is GPL-3.0, not AGPL-3.0. Source never has to be published,
-  even with heavy modification.
-- The code that matters — rules engine, candidate profile schema, scoring
-  profile, parser client — is framework-independent and ports unchanged.
-- The code that would be discarded is the code Frappe already provides:
-  the read API, `JobScope` authorization, Alembic migrations, the Next.js shell.
-
-## What carries over from HR-Screening
-
-| Module | Ports? |
-|---|---|
-| `services/rules_engine.py` | Yes, with its tests |
-| `schemas/candidate_profile.py` | Yes |
-| `schemas/scoring_profile.py` | Yes — the data-minimization boundary |
-| `services/parser_service.py` | Yes |
-| `model_serving/` | Yes — an HTTP call to the local model server |
-| `schemas/job_blueprint.py` | Yes, including the disallowed-features guard |
-| SQLAlchemy models | No — become doctypes |
-| Alembic migrations | No — Frappe manages its own schema |
-| FastAPI routers | No — become whitelisted methods |
-| `core/security.py` JobScope | No — Frappe's permission system replaces it |
-| `apps/web` (Next.js) | No — Frappe's desk UI replaces it |
-
-**`HR-Screening` is not deleted.** It stays as a working system and as the
-source for the ported logic until this repo replaces it in practice.
-
-## Architecture (intended)
+See [ADR 0001](docs/adr/0001-decoupled-hybrid-architecture.md) for why.
 
 ```
-Adamson HQ server
-  Frappe HR              employees, recruitment, auth, roles, audit, UI
-    └─ hr_screening      custom app: parsing, rules, scoring
-  Model server           qwen3vl-resume-parser on a private GPU node
-  PostgreSQL / MariaDB
+Frappe HR ──1. applicant + resume──▶ Screening Gateway (FastAPI)
+    ▲                                        │
+    │                                  2. queue (Redis)
+    │                                        ▼
+    │                                 Worker pool ──▶ vLLM (GPU, on-prem)
+    └──────3. signed callback: score, recommendation, evidence link
 ```
 
-Nothing leaves the network.
+Frappe never sees the parsed profile or the evidence behind a score.
+
+## Layout
+
+```
+apps/adamson_screening_bridge/   Frappe app: dispatch and record. No ML.
+services/screening_engine/
+  app/                           FastAPI, Celery workers, audit ledger
+  screening/                     domain core — imports no framework
+deploy/                          compose, GPU stack, reverse proxy
+tests/unit/                      39 tests, no database, sub-second
+tests/integration/               API, worker and ledger tests
+docs/                            design, governance, ADRs
+```
+
+## Run the tests
+
+```powershell
+uv run --with pydantic --with httpx --with pytest pytest tests/unit -q
+```
+
+No Frappe, no database, no containers. If that ever stops being true,
+something has imported a framework into `screening/`.
+
+## Status
+
+The domain core is ported and green. The engine's API, workers and ledger are
+scaffolded but not implemented, and the bridge raises `NotImplementedError` by
+design — both are blocked on [spike questions 4 and 5](docs/phase-0-spike.md):
+whether Frappe's queue survives a 180-second model call, and where quarantined
+files live before anything scans them.
+
+Nothing is enabled until callback signature verification exists. A score
+influences a hiring decision, and an unauthenticated endpoint that writes one
+is not acceptable.

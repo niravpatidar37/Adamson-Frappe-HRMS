@@ -1,0 +1,46 @@
+[
+  {
+    "doctype": "Custom Field",
+    "dt": "Job Applicant",
+    "module": "Adamson Screening Bridge",
+    "fieldname": "custom_screening_status",
+    "label": "Screening Status",
+    "fieldtype": "Select",
+    "options": "\nPending\nProcessing\nScored\nNeeds Review\nError",
+    "read_only": 1,
+    "insert_after": "status"
+  },
+  {
+    "doctype": "Custom Field",
+    "dt": "Job Applicant",
+    "module": "Adamson Screening Bridge",
+    "fieldname": "custom_match_score",
+    "label": "Match Score",
+    "fieldtype": "Int",
+    "read_only": 1,
+    "description": "Advisory only. Not a hiring decision and not a ranking.",
+    "insert_after": "custom_screening_status"
+  },
+  {
+    "doctype": "Custom Field",
+    "dt": "Job Applicant",
+    "module": "Adamson Screening Bridge",
+    "fieldname": "custom_recommendation",
+    "label": "Recommendation",
+    "fieldtype": "Select",
+    "options": "\nStrong Match\nReview\nNot Currently Shortlisted",
+    "read_only": 1,
+    "insert_after": "custom_match_score"
+  },
+  {
+    "doctype": "Custom Field",
+    "dt": "Job Applicant",
+    "module": "Adamson Screening Bridge",
+    "fieldname": "custom_scorecard_evidence_url",
+    "label": "Evidence",
+    "fieldtype": "Data",
+    "read_only": 1,
+    "description": "Opens the scorecard in the screening engine.",
+    "insert_after": "custom_recommendation"
+  }
+]

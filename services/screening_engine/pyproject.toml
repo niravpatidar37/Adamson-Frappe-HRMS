@@ -1,0 +1,35 @@
+[project]
+name = "screening-engine"
+version = "0.1.0"
+description = "Private AI screening engine: FastAPI ingestion, Celery workers, local VLM"
+requires-python = ">=3.10"
+dependencies = [
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.34",
+    "pydantic>=2.9",
+    "pydantic-settings>=2.6",
+    "sqlalchemy>=2.0",
+    "psycopg[binary]>=3.2",
+    "alembic>=1.14",
+    "celery[redis]>=5.4",
+    "httpx>=0.27",
+    "python-multipart>=0.0.12",
+    "structlog>=24.4",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.3", "pytest-asyncio>=0.24", "ruff>=0.7", "mypy>=1.13", "httpx2>=2.13"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+# B008: FastAPI's Depends(...)/File(...)/Form(...) default-argument pattern is
+# how the framework declares dependencies. Not a mutable-default bug.
+ignore = ["B008"]
+
+[tool.ruff.lint.isort]
+# Without this, `screening` and `app` are classified as third-party and isort
+# wants them merged into the pytest import block.
+known-first-party = ["screening", "app"]
