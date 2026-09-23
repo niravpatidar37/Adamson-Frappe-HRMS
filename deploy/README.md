@@ -122,6 +122,29 @@ custom image is built first.
 
 ### 1. Build `custom:16`
 
+First, a Windows trap worth knowing about. `frappe_docker` ships no
+`.gitattributes`, and Git for Windows checks out with CRLF by default. The
+layered Containerfile copies `resources/core/main-entrypoint.sh` to
+`/usr/local/bin/entrypoint.sh`, so a CRLF checkout gives it a `#!/bin/bash\r`
+shebang. Linux then hunts for an interpreter called `/bin/bash\r` and reports
+`exec /usr/local/bin/entrypoint.sh: no such file or directory` — blaming the
+script rather than the interpreter. Every container built on that image
+restarts with code 255; `configurator` and `create-site` survive only because
+they override the entrypoint with `bash -c`.
+
+The nginx config templates have the same problem one step later.
+
+```powershell
+cd F:\frappe_docker
+git config core.autocrlf false
+git config core.eol lf
+git rm --cached -r . -q
+git reset --hard
+```
+
+Then build:
+
+
 `apps.json` is already written into the `frappe_docker` clone. It pins erpnext
 and hrms to `version-16`, matching the v16 line `pwd.yml` uses.
 
@@ -150,7 +173,7 @@ docker compose -f docker-compose.frappe.yml logs -f create-site
 ```
 
 Site creation runs once and installs both erpnext and hrms. Then open
-<http://localhost:8080> — Administrator / admin.
+<http://localhost:8081> — Administrator / admin.
 
 ### 3. What to check
 

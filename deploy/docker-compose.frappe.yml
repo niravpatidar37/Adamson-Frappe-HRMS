@@ -142,7 +142,10 @@ services:
       - sites:/home/frappe/frappe-bench/sites
       - logs:/home/frappe/frappe-bench/logs
     ports:
-      - "8080:8080"
+      # 8081, not 8080: EDB Postgres already answers on 8080 on this host, and
+      # binding to localhost keeps a throwaway stack with admin/admin
+      # credentials off the network.
+      - "127.0.0.1:8081:8080"
 
   queue-long:
     image: custom:16
