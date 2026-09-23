@@ -13,6 +13,7 @@ Configuration comes from site config, not from this module:
 import hashlib
 import hmac
 import time
+import uuid
 
 import frappe
 import requests
@@ -79,6 +80,31 @@ def _load_resume(doc) -> tuple[bytes, str, str]:
     return content, filename, content_type
 
 
+def _applicant_ref(doc) -> str:
+    """An opaque identifier for the engine, minted once and kept.
+
+    Frappe HR autonames Job Applicant by email address, so `doc.name` is the
+    candidate's email. The engine's ledger is append-only and, per ADR 0001,
+    must not hold contact details — Frappe is the system of record for those.
+    Sending doc.name would write an email into screening_receipts, its unique
+    index, and every scorecard_audits row, where it could never be removed
+    without breaking that table's own contract.
+
+    Minted and committed before the request goes out, so a retry reuses it and
+    the idempotency key stays stable.
+    """
+    ref = doc.get("custom_screening_applicant_ref")
+    if ref:
+        return ref
+    ref = str(uuid.uuid4())
+    frappe.db.set_value(
+        "Job Applicant", doc.name, "custom_screening_applicant_ref", ref,
+        update_modified=False,
+    )
+    frappe.db.commit()
+    return ref
+
+
 def _mark(applicant: str, values: dict) -> None:
     """Write without touching the document's version history.
 
@@ -111,6 +137,7 @@ def send_to_engine(applicant: str) -> None:
         return
 
     checksum = hashlib.sha256(content).hexdigest()
+    applicant_ref = _applicant_ref(doc)
 
     # Built by requests and then read back, rather than sent directly: the
     # signature covers the exact body, so the bytes have to be known before
@@ -118,7 +145,7 @@ def send_to_engine(applicant: str) -> None:
     request = requests.Request(
         "POST",
         f"{base_url.rstrip('/')}/v1/screening/intake",
-        data={"applicant_id": doc.name, "job_opening_id": doc.get("job_title") or ""},
+        data={"applicant_id": applicant_ref, "job_opening_id": doc.get("job_title") or ""},
         files={"resume": (filename, content, content_type)},
     ).prepare()
 
@@ -131,7 +158,7 @@ def send_to_engine(applicant: str) -> None:
             # TODO: include the criteria version once Job Opening carries one.
             # Today a re-screen against new criteria would be suppressed as a
             # duplicate, which is wrong but not yet reachable.
-            "Idempotency-Key": f"{doc.name}:{checksum}",
+            "Idempotency-Key": f"{applicant_ref}:{checksum}",
         }
     )
 

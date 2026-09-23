@@ -2,7 +2,7 @@
   {
     "doctype": "Custom Field",
     "name": "Job Applicant-custom_screening_status",
-    "modified": "2026-09-23 00:00:00.000000",
+    "modified": "2026-09-23 12:00:00.000000",
     "dt": "Job Applicant",
     "module": "Adamson Screening Bridge",
     "fieldname": "custom_screening_status",
@@ -18,7 +18,7 @@
   {
     "doctype": "Custom Field",
     "name": "Job Applicant-custom_screening_tracking_id",
-    "modified": "2026-09-23 00:00:00.000000",
+    "modified": "2026-09-23 12:00:00.000000",
     "dt": "Job Applicant",
     "module": "Adamson Screening Bridge",
     "fieldname": "custom_screening_tracking_id",
@@ -31,8 +31,22 @@
   },
   {
     "doctype": "Custom Field",
+    "name": "Job Applicant-custom_screening_applicant_ref",
+    "modified": "2026-09-23 12:00:00.000000",
+    "dt": "Job Applicant",
+    "module": "Adamson Screening Bridge",
+    "fieldname": "custom_screening_applicant_ref",
+    "label": "Screening Reference",
+    "fieldtype": "Data",
+    "read_only": 1,
+    "no_copy": 1,
+    "insert_after": "custom_screening_tracking_id",
+    "description": "Opaque id sent to the screening engine in place of the applicant name. Frappe HR autonames Job Applicant by email address, and the engine's ledger must not hold contact details."
+  },
+  {
+    "doctype": "Custom Field",
     "name": "Job Applicant-custom_match_score",
-    "modified": "2026-09-23 00:00:00.000000",
+    "modified": "2026-09-23 12:00:00.000000",
     "dt": "Job Applicant",
     "module": "Adamson Screening Bridge",
     "fieldname": "custom_match_score",
@@ -40,14 +54,14 @@
     "fieldtype": "Float",
     "read_only": 1,
     "no_copy": 1,
-    "insert_after": "custom_screening_tracking_id",
+    "insert_after": "custom_screening_applicant_ref",
     "precision": "2",
     "description": "Advisory only. Not a hiring decision and not a ranking."
   },
   {
     "doctype": "Custom Field",
     "name": "Job Applicant-custom_qualification_tier",
-    "modified": "2026-09-23 00:00:00.000000",
+    "modified": "2026-09-23 12:00:00.000000",
     "dt": "Job Applicant",
     "module": "Adamson Screening Bridge",
     "fieldname": "custom_qualification_tier",
@@ -61,7 +75,7 @@
   {
     "doctype": "Custom Field",
     "name": "Job Applicant-custom_scorecard_url",
-    "modified": "2026-09-23 00:00:00.000000",
+    "modified": "2026-09-23 12:00:00.000000",
     "dt": "Job Applicant",
     "module": "Adamson Screening Bridge",
     "fieldname": "custom_scorecard_url",
@@ -76,7 +90,7 @@
   {
     "doctype": "Custom Field",
     "name": "Job Applicant-custom_screening_model_version",
-    "modified": "2026-09-23 00:00:00.000000",
+    "modified": "2026-09-23 12:00:00.000000",
     "dt": "Job Applicant",
     "module": "Adamson Screening Bridge",
     "fieldname": "custom_screening_model_version",
@@ -90,7 +104,7 @@
   {
     "doctype": "Custom Field",
     "name": "Job Applicant-custom_screening_blueprint_version",
-    "modified": "2026-09-23 00:00:00.000000",
+    "modified": "2026-09-23 12:00:00.000000",
     "dt": "Job Applicant",
     "module": "Adamson Screening Bridge",
     "fieldname": "custom_screening_blueprint_version",
@@ -104,7 +118,7 @@
   {
     "doctype": "Custom Field",
     "name": "Job Applicant-custom_screening_error",
-    "modified": "2026-09-23 00:00:00.000000",
+    "modified": "2026-09-23 12:00:00.000000",
     "dt": "Job Applicant",
     "module": "Adamson Screening Bridge",
     "fieldname": "custom_screening_error",
