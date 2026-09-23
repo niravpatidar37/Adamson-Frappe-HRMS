@@ -1,0 +1,34 @@
+# Python
+__pycache__/
+*.py[oc]
+*.egg-info
+.venv/
+venv/
+env/
+
+# Frappe / bench
+sites/
+!sites/apps.txt
+logs/
+config/
+env/
+*.log
+node_modules/
+.build/
+
+# Secrets and local config
+.env
+*.env.local
+site_config.json
+common_site_config.json
+
+# Frappe local data — may contain real candidate files
+private/
+public/files/
+*.sql
+*.sql.gz
+
+# Editor / OS
+.DS_Store
+.idea/
+.vscode/
