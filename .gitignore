@@ -32,3 +32,12 @@ public/files/
 .DS_Store
 .idea/
 .vscode/
+
+# Local quarantine when the engine runs outside Docker.
+var/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# Smoke-test artefact from deploy/README.md step 3.
+some-cv.pdf

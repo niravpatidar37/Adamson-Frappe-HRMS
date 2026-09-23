@@ -1,0 +1,89 @@
+# The screening engine on its own: API, migrations, Postgres, Redis.
+#
+# Separate from docker-compose.frappe.yml on purpose. The two stacks fail
+# independently — a worker that dies parsing a resume must not take Frappe's
+# queues with it — and that isolation is the reason for the split.
+#
+# Ports bind to 127.0.0.1 only. Nothing here is meant to be reachable from
+# outside the host.
+name: adamson-screening-engine
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: screening
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-screening}
+      POSTGRES_DB: screening
+    # 5433, not 5432: you already have a Postgres on this machine.
+    ports: ["127.0.0.1:5433:5432"]
+    volumes: ["screening-db:/var/lib/postgresql/data"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U screening -d screening"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  redis:
+    image: redis:7-alpine
+    # No persistence: the broker holds in-flight jobs, not records. Anything
+    # worth keeping is in Postgres.
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  # One-shot. The API waits for this rather than running migrations itself,
+  # so two API replicas can never race each other into the same upgrade.
+  migrate:
+    build: { context: ../services/screening_engine }
+    command: ["alembic", "upgrade", "head"]
+    environment:
+      SCREENING_DATABASE_URL: postgresql+psycopg://screening:${POSTGRES_PASSWORD:-screening}@postgres:5432/screening
+      SCREENING_CALLBACK_SECRET: ${SCREENING_CALLBACK_SECRET:?set SCREENING_CALLBACK_SECRET in deploy/.env}
+    depends_on:
+      postgres: { condition: service_healthy }
+    restart: "no"
+
+  engine:
+    build: { context: ../services/screening_engine }
+    environment:
+      SCREENING_ENVIRONMENT: ${SCREENING_ENVIRONMENT:-development}
+      SCREENING_DATABASE_URL: postgresql+psycopg://screening:${POSTGRES_PASSWORD:-screening}@postgres:5432/screening
+      SCREENING_REDIS_URL: redis://redis:6379/0
+      SCREENING_QUARANTINE_ROOT: /var/lib/screening/quarantine
+      SCREENING_CALLBACK_SECRET: ${SCREENING_CALLBACK_SECRET:?set SCREENING_CALLBACK_SECRET in deploy/.env}
+    ports: ["127.0.0.1:8100:8000"]
+    volumes: ["screening-quarantine:/var/lib/screening/quarantine"]
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+      redis: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/healthz').status==200 else 1)\""]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  # Opt-in: `docker compose --profile worker up`. The pipeline task is still
+  # a stub, so by default there is nothing for this to do.
+  worker:
+    build: { context: ../services/screening_engine }
+    command: ["celery", "-A", "app.workers.celery_app.celery_app", "worker", "--loglevel=info", "--concurrency=1"]
+    environment:
+      SCREENING_DATABASE_URL: postgresql+psycopg://screening:${POSTGRES_PASSWORD:-screening}@postgres:5432/screening
+      SCREENING_REDIS_URL: redis://redis:6379/0
+      SCREENING_QUARANTINE_ROOT: /var/lib/screening/quarantine
+      SCREENING_CALLBACK_SECRET: ${SCREENING_CALLBACK_SECRET:?set SCREENING_CALLBACK_SECRET in deploy/.env}
+    volumes: ["screening-quarantine:/var/lib/screening/quarantine"]
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+      redis: { condition: service_healthy }
+    profiles: ["worker"]
+
+volumes:
+  screening-db:
+  # Candidate resumes. Backed up and retained on the same schedule as the
+  # ledger, and deleted with it.
+  screening-quarantine:
