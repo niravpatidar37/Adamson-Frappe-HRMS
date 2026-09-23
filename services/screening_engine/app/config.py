@@ -5,6 +5,7 @@ package under `screening/` reads none of this — values are passed in.
 """
 
 from functools import lru_cache
+from pathlib import Path
 
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -27,6 +28,10 @@ class Settings(BaseSettings):
 
     max_upload_bytes: int = 20 * 1024 * 1024
     max_resume_pages: int = 15
+
+    # Uploaded bytes live here until something has looked at them. Not
+    # served over HTTP by anything; the worker reads it from disk.
+    quarantine_root: Path = Path("/var/lib/screening/quarantine")
 
     # Frappe callback target, and the shared secret both sides sign with.
     frappe_base_url: str = "http://frappe-internal:8000"

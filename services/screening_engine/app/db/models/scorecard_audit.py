@@ -31,6 +31,8 @@ class ScreeningReceipt(Base, UUIDPrimaryKeyMixin, TimestampMixin):
 
     checksum_sha256: Mapped[str] = mapped_column(String(64))
     original_filename: Mapped[str] = mapped_column(String(512))
+    # Where the quarantined bytes are, relative to settings.quarantine_root.
+    object_key: Mapped[str] = mapped_column(String(512))
     content_type: Mapped[str] = mapped_column(String(128))
 
     status: Mapped[str] = mapped_column(String(32), default="accepted", index=True)

@@ -12,9 +12,13 @@ need engine credentials into Frappe. Pushing the bytes avoids both.
 import uuid
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
+from sqlalchemy.orm import Session
 
 from app.config import Settings, get_settings
+from app.db.models import ScreeningReceipt
+from app.db.session import get_db
 from app.security import verify_signature
+from app.storage import save_quarantined
 from screening.core.exceptions import UntrustedContentError
 from screening.services import intake_service
 
@@ -46,9 +50,10 @@ async def intake(
     resume: UploadFile = File(...),
     _: None = Depends(verify_signature),
     settings: Settings = Depends(get_settings),
+    db: Session = Depends(get_db),
 ) -> dict[str, str]:
-    data = await _read_capped(resume, settings.max_upload_bytes)
     try:
+        data = await _read_capped(resume, settings.max_upload_bytes)
         intake_service.validate_upload(
             content_type=resume.content_type or "",
             size_bytes=len(data),
@@ -56,18 +61,41 @@ async def intake(
             max_bytes=settings.max_upload_bytes,
         )
     except UntrustedContentError as exc:
+        # The reason is deliberately not echoed: the caller is Frappe, and the
+        # detail belongs in the engine's logs, not in a response a candidate's
+        # file shaped.
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "rejected upload") from exc
 
-    receipt_id = str(uuid.uuid4())
+    receipt_id = uuid.uuid4()
     checksum = intake_service.checksum(data)
 
-    # TODO(spike): persist the receipt and hand the bytes to the worker.
-    # Blocked on spike question 5 — where quarantined files live before a
-    # scanner has looked at them. Writing them anywhere before that is
-    # decided would be the path-traversal mistake again, in a new place.
+    # Bytes to disk before the row, so a committed receipt always has a file
+    # behind it. The reverse order can leave the worker chasing a missing one.
+    object_key = save_quarantined(
+        root=settings.quarantine_root,
+        receipt_id=receipt_id,
+        filename=resume.filename or "resume",
+        data=data,
+    )
+
+    receipt = ScreeningReceipt(
+        id=receipt_id,
+        applicant_id=applicant_id,
+        job_opening_id=job_opening_id,
+        checksum_sha256=checksum,
+        original_filename=(resume.filename or "resume")[:512],
+        content_type=(resume.content_type or "")[:128],
+        object_key=object_key,
+        status="accepted",
+    )
+    db.add(receipt)
+    db.commit()
+
+    # TODO: enqueue screen_resume(receipt_id) once the pipeline lands. Queuing
+    # now would only schedule a NotImplementedError and burn the retries.
 
     return {
-        "receipt_id": receipt_id,
+        "receipt_id": str(receipt_id),
         "applicant_id": applicant_id,
         "job_opening_id": job_opening_id,
         "checksum_sha256": checksum,
