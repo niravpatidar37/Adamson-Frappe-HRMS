@@ -14,6 +14,12 @@ services:
     image: adamson/frappe-hr:16
     networks:
       - frappe_network
+      # Shared with the engine stack, so the bridge reaches it as
+      # http://engine:8000. Going via the host would need 8100 opened
+      # beyond 127.0.0.1: traffic from a container arrives on the host's
+      # virtual adapter, not loopback, and a localhost-only listener
+      # refuses it.
+      - adamson-internal
     deploy:
       restart_policy:
         condition: on-failure
@@ -152,6 +158,12 @@ services:
     image: adamson/frappe-hr:16
     networks:
       - frappe_network
+      # Shared with the engine stack, so the bridge reaches it as
+      # http://engine:8000. Going via the host would need 8100 opened
+      # beyond 127.0.0.1: traffic from a container arrives on the host's
+      # virtual adapter, not loopback, and a localhost-only listener
+      # refuses it.
+      - adamson-internal
     deploy:
       restart_policy:
         condition: on-failure
@@ -174,6 +186,12 @@ services:
     image: adamson/frappe-hr:16
     networks:
       - frappe_network
+      # Shared with the engine stack, so the bridge reaches it as
+      # http://engine:8000. Going via the host would need 8100 opened
+      # beyond 127.0.0.1: traffic from a container arrives on the host's
+      # virtual adapter, not loopback, and a localhost-only listener
+      # refuses it.
+      - adamson-internal
     deploy:
       restart_policy:
         condition: on-failure
@@ -214,6 +232,12 @@ services:
     image: adamson/frappe-hr:16
     networks:
       - frappe_network
+      # Shared with the engine stack, so the bridge reaches it as
+      # http://engine:8000. Going via the host would need 8100 opened
+      # beyond 127.0.0.1: traffic from a container arrives on the host's
+      # virtual adapter, not loopback, and a localhost-only listener
+      # refuses it.
+      - adamson-internal
     deploy:
       restart_policy:
         condition: on-failure
@@ -256,3 +280,9 @@ volumes:
 networks:
   frappe_network:
     driver: bridge
+  # Created once by hand and shared with the engine stack:
+  #   docker network create adamson-internal
+  # External so neither project owns it, and `down` on one leaves the
+  # other's connectivity alone.
+  adamson-internal:
+    external: true

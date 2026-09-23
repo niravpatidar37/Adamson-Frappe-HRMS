@@ -235,22 +235,48 @@ Without a mount, rebuild the image and recreate.
 
 ### 4. Point the bridge at the engine
 
-The two stacks are separate compose projects, so Frappe cannot reach the
-engine as `localhost` — that is its own container. On Docker Desktop
-`host.docker.internal` resolves to the host, where the engine publishes 8100.
+The two stacks are separate compose projects. They talk over a shared private
+network rather than through the host: the engine publishes on `127.0.0.1:8100`
+only, and traffic from a container arrives on the host's virtual adapter
+rather than loopback, so `host.docker.internal:8100` is refused. Opening the
+port beyond localhost to work around that would put a service that accepts
+resumes on every interface.
 
-The secret must be byte-identical to `SCREENING_CALLBACK_SECRET` in
-`deploy\.env`; both sides sign with it.
+Create the network once, then recreate both stacks so they join it:
 
 ```powershell
+docker network create adamson-internal
+
+cd "F:\Adamson Frappe HRMS\deploy"
+docker compose -f docker-compose.engine.yml up -d
+docker compose -f docker-compose.frappe.yml up -d
+```
+
+The engine is then `http://engine:8000` from inside Frappe — the container
+port, not the published one. Configure the site, reading the secret straight
+out of `.env` so it cannot drift from what the engine verifies against:
+
+```powershell
+$secret = ((Get-Content .env | Select-String '^SCREENING_CALLBACK_SECRET=') -split '=', 2)[1]
+
 docker compose -f docker-compose.frappe.yml exec backend `
-  bench --site frontend set-config screening_engine_url http://host.docker.internal:8100
+  bench --site frontend set-config screening_engine_url http://engine:8000
 docker compose -f docker-compose.frappe.yml exec backend `
-  bench --site frontend set-config screening_callback_secret "paste-the-same-value-as-deploy-dot-env"
+  bench --site frontend set-config screening_callback_secret $secret
 docker compose -f docker-compose.frappe.yml exec backend `
   bench --site frontend set-config screening_key_id v1
 docker compose -f docker-compose.frappe.yml restart backend queue-short queue-long
 ```
+
+Check the path is open before relying on it:
+
+```powershell
+docker compose -f docker-compose.frappe.yml exec backend `
+  curl -s -o /dev/null -w "%{http_code}\n" http://engine:8000/healthz
+```
+
+`200` means Frappe can see the engine. Anything else is the network, not the
+bridge.
 
 Then create a Job Applicant with a PDF in Resume Attachment. Within a second
 or two Screening Status should turn **Queued** and Tracking ID should hold a

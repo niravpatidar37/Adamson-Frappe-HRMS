@@ -49,6 +49,12 @@ services:
 
   engine:
     build: { context: ../services/screening_engine }
+    networks:
+      # Frappe reaches this as http://engine:8000, container to container.
+      # Going via the host would need the port opened beyond 127.0.0.1,
+      # because traffic from a container arrives on the host's virtual
+      # adapter rather than loopback and a localhost-only listener refuses it.
+      [default, adamson-internal]
     environment:
       SCREENING_ENVIRONMENT: ${SCREENING_ENVIRONMENT:-development}
       SCREENING_DATABASE_URL: postgresql+psycopg://screening:${POSTGRES_PASSWORD:-screening}@postgres:5432/screening
@@ -81,6 +87,14 @@ services:
       migrate: { condition: service_completed_successfully }
       redis: { condition: service_healthy }
     profiles: ["worker"]
+
+networks:
+  # Created once, by hand, and shared with the Frappe stack:
+  #   docker network create adamson-internal
+  # External so neither compose project owns it, and `down` on either leaves
+  # the other's connectivity alone.
+  adamson-internal:
+    external: true
 
 volumes:
   screening-db:
