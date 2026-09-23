@@ -9,6 +9,7 @@ from fastapi import FastAPI
 
 from app.api.v1.router import api_router
 from app.config import get_settings
+from app.middleware import RawBodyMiddleware
 
 
 def create_app() -> FastAPI:
@@ -19,6 +20,9 @@ def create_app() -> FastAPI:
         # Not public. Reachable only from Frappe on the internal network.
         description="Private AI screening service. No public ingress.",
     )
+    # Outermost: the signature covers bytes that must be captured before any
+    # other layer reads the request stream.
+    app.add_middleware(RawBodyMiddleware, max_body_bytes=settings.max_upload_bytes)
     app.include_router(api_router, prefix="/v1")
 
     @app.get("/healthz", tags=["health"])
