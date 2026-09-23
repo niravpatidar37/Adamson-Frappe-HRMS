@@ -13,6 +13,7 @@ from a failure, so it will retry, and a retried resume must not become a second
 screening of the same person.
 """
 
+import logging
 import uuid
 
 from fastapi import (
@@ -38,6 +39,7 @@ from app.storage import quarantined_path, save_quarantined
 from screening.core.exceptions import UntrustedContentError
 from screening.services import intake_service
 
+logger = logging.getLogger(__name__)
 router = APIRouter()
 
 _CHUNK = 1024 * 1024
@@ -153,8 +155,18 @@ async def intake(
         response.status_code = status.HTTP_200_OK
         return _receipt_body(winner, replayed=True)
 
-    # TODO: enqueue screen_resume(receipt_id) once the pipeline lands. Queuing
-    # now would only schedule a NotImplementedError and burn the retries.
+    if settings.enqueue_screening:
+        # Imported here, not at module scope: the API process should not pull
+        # in Celery's app just to serve a request, and a broker that is down
+        # must not stop an upload being recorded.
+        from app.workers.tasks import screen_resume
+
+        try:
+            screen_resume.delay(str(receipt_id))
+        except Exception:
+            # The receipt is committed either way. A queue that rejected the
+            # job is an operational problem, not a reason to lose the upload.
+            logger.exception("receipt %s: could not enqueue screening", receipt_id)
 
     response.status_code = status.HTTP_202_ACCEPTED
     return _receipt_body(

@@ -72,8 +72,14 @@ services:
       timeout: 5s
       retries: 10
 
-  # Opt-in: `docker compose --profile worker up`. The pipeline task is still
-  # a stub, so by default there is nothing for this to do.
+  # Stands in for vLLM. The real model needs a GPU; everything around the
+  # model call is testable without one, so this answers on the same endpoint
+  # in the same shape and returns a fixed profile. Swap SCREENING_VLM_ENDPOINT
+  # for the GPU node's vLLM and delete nothing else.
+  parser-stub:
+    build: { context: ../services/parser_stub }
+    networks: [default, adamson-internal]
+
   worker:
     build: { context: ../services/screening_engine }
     command: ["celery", "-A", "app.workers.celery_app.celery_app", "worker", "--loglevel=info", "--concurrency=1"]
@@ -82,11 +88,11 @@ services:
       SCREENING_REDIS_URL: redis://redis:6379/0
       SCREENING_QUARANTINE_ROOT: /var/lib/screening/quarantine
       SCREENING_CALLBACK_SECRET: ${SCREENING_CALLBACK_SECRET:?set SCREENING_CALLBACK_SECRET in deploy/.env}
+      SCREENING_VLM_ENDPOINT: ${SCREENING_VLM_ENDPOINT:-http://parser-stub:8000/v1/chat/completions}
     volumes: ["screening-quarantine:/var/lib/screening/quarantine"]
     depends_on:
       migrate: { condition: service_completed_successfully }
       redis: { condition: service_healthy }
-    profiles: ["worker"]
 
 networks:
   # Created once, by hand, and shared with the Frappe stack:

@@ -95,13 +95,26 @@ docker compose -f deploy\docker-compose.engine.yml exec postgres `
   psql -U screening -d screening -c "select id, applicant_id, status, created_at from screening_receipts order by created_at desc limit 5;"
 ```
 
-### Worker
+### Worker and the parser stub
 
-Off by default, because the task it would run is still `NotImplementedError`:
+Both start with the stack. The worker runs the pipeline; `parser-stub` stands
+in for vLLM, answering on the same endpoint in the same shape and returning a
+fixed profile. It is not a model and parses nothing — it exists so rendering,
+transport, validation, the minimization boundary and the audit row are all
+exercised on hardware without a GPU.
 
-```powershell
-docker compose -f docker-compose.engine.yml --profile worker up -d
+Point the worker at a real vLLM with one variable in `deploy\.env`:
+
 ```
+SCREENING_VLM_ENDPOINT=http://<gpu-node>:8000/v1/chat/completions
+```
+
+Nothing else changes, and `parser-stub` can then leave the stack.
+
+A screening currently ends at `needs_review` with "awaiting approved criteria
+for this job". That is correct: eligibility needs an approved JobBlueprint for
+the opening, nothing creates one yet, and screening against criteria no human
+approved is what the design forbids.
 
 ### Stopping
 

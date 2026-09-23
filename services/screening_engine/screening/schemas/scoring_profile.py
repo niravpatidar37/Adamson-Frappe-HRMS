@@ -28,7 +28,6 @@ class EmploymentInterval(BaseModel):
 
 class ScoringProfile(BaseModel):
     application_id: str
-    tenant_id: str
     job_id: str
     skills: list[str] = Field(default_factory=list)
     verified_certifications: list[str] = Field(default_factory=list)
@@ -41,7 +40,6 @@ class ScoringProfile(BaseModel):
 def build_scoring_profile(
     *,
     application_id: str,
-    tenant_id: str,
     job_id: str,
     profile: CandidateProfile,
     work_authorization_status: Literal["eligible", "ineligible", "unknown"] = "unknown",
@@ -53,7 +51,6 @@ def build_scoring_profile(
     """
     return ScoringProfile(
         application_id=application_id,
-        tenant_id=tenant_id,
         job_id=job_id,
         skills=[s.name for s in profile.skills],
         verified_certifications=[c.name for c in profile.certificates],

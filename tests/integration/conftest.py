@@ -18,6 +18,8 @@ os.environ["SCREENING_DATABASE_URL"] = f"sqlite:///{_TMP}/ledger.db"
 os.environ["SCREENING_QUARANTINE_ROOT"] = f"{_TMP}/quarantine"
 # Length is enforced by the settings model; the value is meaningless here.
 os.environ["SCREENING_CALLBACK_SECRET"] = _SECRET
+# No broker in tests. The pipeline is exercised directly instead.
+os.environ["SCREENING_ENQUEUE_SCREENING"] = "false"
 
 
 @pytest.fixture(scope="session")

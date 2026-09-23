@@ -36,6 +36,10 @@ class Settings(BaseSettings):
     max_upload_bytes: int = 5 * 1024 * 1024
     max_resume_pages: int = 4
 
+    # Off in tests, which have no broker. Also the switch that keeps the
+    # pipeline from running before a deployment is ready for it.
+    enqueue_screening: bool = True
+
     # Uploaded bytes live here until something has looked at them. Not
     # served over HTTP by anything; the worker reads it from disk.
     quarantine_root: Path = Path("/var/lib/screening/quarantine")

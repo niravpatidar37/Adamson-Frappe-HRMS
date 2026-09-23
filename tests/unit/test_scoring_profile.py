@@ -14,7 +14,7 @@ def test_scoring_profile_excludes_direct_identifiers_and_prohibited_fields() -> 
     )
 
     scoring_profile = build_scoring_profile(
-        application_id="app_1", tenant_id="tenant_1", job_id="job_1", profile=profile
+        application_id="app_1", job_id="job_1", profile=profile
     )
 
     dumped = scoring_profile.model_dump()
