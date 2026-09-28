@@ -20,13 +20,26 @@ fixtures = [
 
 doc_events = {
     "Job Applicant": {
+        # Knockout result from the applicant's own answers (v1, Frappe-native).
+        "validate": "adamson_screening_bridge.knockout.set_knockout_result",
         # Dispatch is enqueued, never inline. A synchronous call here would
         # stall every application submission by the engine's response time,
         # and would run inside the transaction that saves the applicant.
         "after_insert": "adamson_screening_bridge.tasks.dispatch_screening",
     },
-    # Job Opening on_update is deliberately NOT registered yet.
-    # handle_requisition_closed still raises NotImplementedError, and a hook
-    # that raises would make every edit to a job opening fail in the UI.
-    # Register it in the same commit that implements it.
+    "Job Opening": {
+        # Re-sorts applicants when a knockout requirement changes.
+        # handle_requisition_closed is deliberately NOT registered: it still
+        # raises NotImplementedError, and a hook that raises would make every
+        # edit to a job opening fail in the UI. Register it in the same commit
+        # that implements it.
+        "on_update": "adamson_screening_bridge.knockout.recompute_for_opening",
+    },
 }
+
+# Recruiter list ordering; extends hrms's own list settings.
+doctype_list_js = {"Job Applicant": "public/js/job_applicant_list.js"}
+
+# Every migrate, not a one-off patch: an hrms update can re-sync its standard
+# application web form and drop the knockout questions.
+after_migrate = ["adamson_screening_bridge.knockout.ensure_web_form"]

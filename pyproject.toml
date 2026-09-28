@@ -17,13 +17,14 @@ exclude = ["deploy", "apps/*/adamson_screening_bridge/fixtures"]
 ignore = ["B008"]
 
 [tool.ruff.lint.isort]
-known-first-party = ["screening", "app"]
+known-first-party = ["screening", "app", "adamson_screening_bridge"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 # The domain package is importable without installing the engine, so the unit
 # tests run in under a second with no database and no web server.
-pythonpath = ["services/screening_engine"]
+# The bridge app's knockout_rules is frappe-free for the same reason.
+pythonpath = ["services/screening_engine", "apps/adamson_screening_bridge"]
 filterwarnings = [
     # Both come from starlette's own TestClient module, not from this
     # code, and both are already on the latest release.

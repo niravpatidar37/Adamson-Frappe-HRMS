@@ -60,6 +60,15 @@ authentication, and a score feeds a hiring decision.
 Cohort ranking happens at requisition close, not during intake. Ranking a
 moving population means a candidate's position changes as others apply.
 
+### Amendment (2026-09-28): v1 knockout filtering is Frappe-side
+
+The first shipped screening step compares an applicant's own yes/no answers
+against the opening's requirements, and it runs in the bridge
+(`knockout_rules.py`), not in the engine. That is the one piece of decision
+logic in `apps/`, accepted because it reads only what the applicant declared,
+needs no model, and never rejects anyone. It moves behind the engine's ledger
+when the v2 scorer lands. See docs/designs/applicant-screening-funnel.md (D8).
+
 ## Superseded
 
 Earlier work assumed a single custom stack. The read API, `JobScope`

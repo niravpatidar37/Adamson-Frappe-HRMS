@@ -24,7 +24,7 @@ services/screening_engine/
   app/                           FastAPI, Celery workers, audit ledger
   screening/                     domain core — imports no framework
 deploy/                          compose, GPU stack, reverse proxy
-tests/unit/                      39 tests, no database, sub-second
+tests/unit/                      56 tests, no database, sub-second
 tests/integration/               API, worker and ledger tests
 docs/                            design, governance, ADRs
 ```
@@ -32,7 +32,7 @@ docs/                            design, governance, ADRs
 ## Run the tests
 
 ```powershell
-uv run --with pydantic --with httpx --with pytest pytest tests/unit -q
+uv run --with pydantic --with httpx --with pytest --with pypdfium2 --with pillow pytest tests/unit -q
 ```
 
 No Frappe, no database, no containers. If that ever stops being true,
